@@ -8,6 +8,7 @@ import 'pages/register_page.dart';
 import 'pages/home_page.dart';
 import 'models/cart_item_model.dart';
 import 'models/purchase_history_model.dart';
+import 'models/comment_model.dart'; // NEW: Import CommentModel
 
 const Color accentColor = Color(0xFFFFB300);
 
@@ -18,10 +19,12 @@ void main() async {
   Hive.registerAdapter(UserModelAdapter());
   Hive.registerAdapter(CartItemModelAdapter());
   Hive.registerAdapter(PurchaseHistoryModelAdapter());
+  Hive.registerAdapter(CommentModelAdapter()); // NEW: Daftarkan CommentModel
 
   await Hive.openBox<UserModel>('userBox');
   await Hive.openBox<CartItemModel>('cartBox');
   await Hive.openBox<PurchaseHistoryModel>('historyBox');
+  await Hive.openBox<CommentModel>('commentBox'); // NEW: Buka Comment Box
 
   await NotificationService().init();
 

@@ -10,6 +10,7 @@ import 'detail_page.dart';
 import 'login_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'checkout_detail_page.dart';
+import 'application_comment_page.dart'; // NEW: Import Halaman Komentar Aplikasi
 
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
@@ -88,6 +89,7 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
     await prefs.remove('current_user_email');
+    await prefs.remove('userName');
 
     Navigator.of(
       context,
@@ -120,6 +122,26 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // NEW Method: Navigasi ke Halaman Komentar Aplikasi
+  void _openApplicationCommentPage() {
+    if (_currentUserEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mohon login terlebih dahulu.')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ApplicationCommentPage(
+          userEmail: _currentUserEmail,
+          userName: _userName,
+        ),
+      ),
+    );
+  }
+
   void _openDetailPage(Map<String, dynamic> item) {
     if (_currentUserEmail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -131,8 +153,11 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            DetailPage(item: item, currentUserEmail: _currentUserEmail),
+        builder: (context) => DetailPage(
+          item: item,
+          currentUserEmail: _currentUserEmail,
+          currentUserName: _userName, // NEW: Kirim nama pengguna
+        ),
       ),
     );
   }
@@ -145,13 +170,27 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Welcome, $_userName",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: darkPrimaryColor,
-                ),
+              // MODIFIED: Menambahkan Row untuk tombol komentar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      "Welcome, $_userName",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: darkPrimaryColor,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    // Tombol Komentar Aplikasi
+                    icon: Icon(Icons.comment, color: darkPrimaryColor),
+                    onPressed: _openApplicationCommentPage,
+                    tooltip: 'Umpan Balik Aplikasi',
+                  ),
+                ],
               ),
               const SizedBox(height: 15),
 
