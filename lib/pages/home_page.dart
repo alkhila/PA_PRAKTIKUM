@@ -10,7 +10,8 @@ import 'detail_page.dart';
 import 'login_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'checkout_detail_page.dart';
-import 'application_comment_page.dart'; // NEW: Import Halaman Komentar Aplikasi
+import 'application_comment_page.dart';
+import '../services/currency_service.dart'; // Import CurrencyService
 
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
@@ -33,9 +34,15 @@ class _HomePageState extends State<HomePage> {
 
   final ApiService _apiService = ApiService();
   final LocationService _locationService = LocationService();
+  final CurrencyService _currencyService =
+      CurrencyService(); // Currency Service instance
 
   String _currentAddress = 'Klik Lacak Lokasi';
   bool _isLocating = false;
+
+  // NEW STATE FOR CURRENCY
+  String _currentCurrencyCode = 'IDR';
+  Map<String, double> _exchangeRates = {};
 
   String _searchQuery = '';
   MenuFilter _currentFilter = MenuFilter.all;
@@ -44,7 +51,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadUserInfo();
-    _menuFuture = _apiService.fetchMenu();
+    _loadInitialData(); // Load currency and then menu
   }
 
   void _loadUserInfo() async {
@@ -53,6 +60,137 @@ class _HomePageState extends State<HomePage> {
       _userName = prefs.getString('userName') ?? 'FastFoodie';
       _currentUserEmail = prefs.getString('current_user_email') ?? '';
     });
+  }
+
+  // NEW METHOD: Load location, determine currency, fetch rates, then fetch menu
+  void _loadInitialData() async {
+    // 1. Fetch Currency Rates
+    try {
+      _exchangeRates = await _currencyService.getExchangeRates();
+    } catch (e) {
+      debugPrint('Error fetching rates: $e');
+    }
+
+    // 2. Determine User Location and Default Currency
+    await _determineDefaultCurrency();
+
+    // 3. Fetch Menu (Start fetching the menu)
+    _menuFuture = _apiService.fetchMenu();
+    setState(() {}); // Trigger rebuild to show menu
+  }
+
+  // Method to fetch location, determine currency, and update state
+  Future<void> _determineDefaultCurrency({bool manualTrack = false}) async {
+    if (!manualTrack && _currentAddress != 'Klik Lacak Lokasi') return;
+
+    if (manualTrack) {
+      setState(() {
+        _isLocating = true;
+      });
+    }
+
+    try {
+      final position = await _locationService.getCurrentPosition();
+      final locationData = await _locationService.getCountryCode(
+        position.latitude,
+        position.longitude,
+      );
+      final countryCode = locationData['code']!;
+      final defaultCurrency = _currencyService.getDefaultCurrency(countryCode);
+      final address = await _locationService.getAddressFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      setState(() {
+        _currentAddress = address;
+        _currentCurrencyCode = defaultCurrency;
+        _isLocating = false;
+      });
+    } catch (e) {
+      String errorMsg = e.toString().replaceAll('Exception: ', '');
+      setState(() {
+        _currentAddress = manualTrack
+            ? 'Error: $errorMsg'
+            : 'Klik Lacak Lokasi';
+        _isLocating = false;
+      });
+    }
+  }
+
+  // Modified _trackLocation to use _determineDefaultCurrency logic
+  void _trackLocation() async {
+    // Only update loading status in state for visual feedback
+    setState(() {
+      _isLocating = true;
+      _currentAddress = 'Sedang melacak lokasi...';
+    });
+    // Use the comprehensive method for manual track
+    await _determineDefaultCurrency(manualTrack: true);
+  }
+
+  // NEW FUNCTION: Price Converter
+  String _convertAndFormatPrice(double basePrice) {
+    if (_exchangeRates.isEmpty || _currentCurrencyCode == 'IDR') {
+      return 'Rp ${basePrice.toStringAsFixed(0)}';
+    }
+
+    final targetRate = _exchangeRates[_currentCurrencyCode];
+    if (targetRate == null) {
+      return 'Rp ${basePrice.toStringAsFixed(0)}'; // Fallback
+    }
+
+    // Convert Price_IDR (basePrice) to Price_Target: Price_IDR * Rate_Target
+    final convertedAmount = basePrice * targetRate;
+
+    // Use NumberFormat for proper symbol/code formatting
+    final format = NumberFormat.currency(
+      locale: 'en_US', // Using en_US for consistent code placement
+      symbol: _currentCurrencyCode,
+      decimalDigits: convertedAmount >= 1000
+          ? 0
+          : 2, // Tampilkan 2 desimal jika nilainya kecil
+    );
+
+    return format.format(convertedAmount);
+  }
+
+  // NEW FUNCTION: Rating Stars Renderer
+  Widget _buildRatingStars(dynamic ratingValue) {
+    double rating = 0.0;
+    if (ratingValue is num) {
+      rating = ratingValue.toDouble();
+    } else {
+      // Default ke 4.0 jika tidak ada rating
+      rating = 4.0;
+    }
+
+    int fullStars = rating.floor();
+    bool hasHalfStar = (rating - fullStars) >= 0.5;
+
+    // Mengubah return untuk menyertakan nilai numerik
+    return Row(
+      children: [
+        ...List.generate(5, (index) {
+          if (index < fullStars) {
+            return const Icon(Icons.star, color: Colors.amber, size: 14);
+          } else if (index == fullStars && hasHalfStar) {
+            return const Icon(Icons.star_half, color: Colors.amber, size: 14);
+          } else {
+            return const Icon(Icons.star_border, color: Colors.amber, size: 14);
+          }
+        }),
+        const SizedBox(width: 4), // Memberi sedikit spasi
+        Text(
+          rating.toStringAsFixed(1), // Menampilkan rating dengan 1 desimal
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
   }
 
   void _confirmLogout() {
@@ -96,52 +234,6 @@ class _HomePageState extends State<HomePage> {
     ).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
   }
 
-  void _trackLocation() async {
-    setState(() {
-      _isLocating = true;
-      _currentAddress = 'Sedang melacak lokasi...';
-    });
-
-    try {
-      final position = await _locationService.getCurrentPosition();
-      final address = await _locationService.getAddressFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      setState(() {
-        _currentAddress = address;
-        _isLocating = false;
-      });
-    } catch (e) {
-      setState(() {
-        String errorMsg = e.toString().replaceAll('Exception: ', '');
-        _currentAddress = 'Error: $errorMsg';
-        _isLocating = false;
-      });
-    }
-  }
-
-  // NEW Method: Navigasi ke Halaman Komentar Aplikasi
-  void _openApplicationCommentPage() {
-    if (_currentUserEmail.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mohon login terlebih dahulu.')),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ApplicationCommentPage(
-          userEmail: _currentUserEmail,
-          userName: _userName,
-        ),
-      ),
-    );
-  }
-
   void _openDetailPage(Map<String, dynamic> item) {
     if (_currentUserEmail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -170,30 +262,55 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // MODIFIED: Menambahkan Row untuk tombol komentar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      "Welcome, $_userName",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: darkPrimaryColor,
-                      ),
-                    ),
+              // --- END: Tombol Feedback & Welcome diatur sejajar ---
+
+              // --- START: LOKASI DIPINDAHKAN KE HOME TAB ---
+              Text(
+                'Lokasi Saya:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: darkPrimaryColor,
+                ),
+              ),
+              Text(
+                '$_currentAddress | Kurs: $_currentCurrencyCode', // Display current currency
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _isLocating
+                      ? Color(0xFF703B3B)
+                      : darkPrimaryColor.withOpacity(0.8),
+                ),
+                textAlign: TextAlign.start,
+              ),
+              const SizedBox(height: 5),
+              ElevatedButton.icon(
+                onPressed: _isLocating ? null : _trackLocation,
+                icon: _isLocating
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.location_on, size: 18),
+                label: Text(
+                  _isLocating ? 'Melacak...' : 'Lacak Lokasi Sekarang',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: darkPrimaryColor,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(180, 35),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  IconButton(
-                    // Tombol Komentar Aplikasi
-                    icon: Icon(Icons.comment, color: darkPrimaryColor),
-                    onPressed: _openApplicationCommentPage,
-                    tooltip: 'Umpan Balik Aplikasi',
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 15),
 
+              // --- END: LOKASI DIPINDAHKAN KE HOME TAB ---
               TextField(
                 onChanged: (value) {
                   setState(() {
@@ -315,6 +432,11 @@ class _HomePageState extends State<HomePage> {
                         (item['type'] == 'Minuman' &&
                         (item['strMealThumb'] as String).startsWith('assets/'));
 
+                    // Base price is assumed to be in IDR (from API service)
+                    final double basePrice = item['price'] is num
+                        ? item['price'].toDouble()
+                        : 0.0;
+
                     return InkWell(
                       onTap: () => _openDetailPage(item),
                       borderRadius: BorderRadius.circular(15),
@@ -372,6 +494,11 @@ class _HomePageState extends State<HomePage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
+                                        // MODIFIED: RATING STARS (using item['rate'] from API)
+                                        _buildRatingStars(item['rate']),
+                                        const SizedBox(height: 4),
+
+                                        // END RATING STARS
                                         Text(
                                           item['strMeal'] ?? 'Nama Menu',
                                           style: const TextStyle(
@@ -387,14 +514,16 @@ class _HomePageState extends State<HomePage> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
+                                        // MODIFIED: DYNAMIC CURRENCY DISPLAY
                                         Text(
-                                          'Rp ${item['price']?.toStringAsFixed(0) ?? 'N/A'}',
+                                          _convertAndFormatPrice(basePrice),
                                           style: const TextStyle(
                                             color: darkPrimaryColor,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
                                         ),
+                                        // END DYNAMIC CURRENCY
                                         Container(
                                           padding: const EdgeInsets.all(5),
                                           decoration: BoxDecoration(
@@ -512,6 +641,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
+
                   const Divider(height: 40, color: Colors.grey),
 
                   Text(
@@ -523,47 +653,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  Text(
-                    'Lokasi Saya:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: darkPrimaryColor,
-                    ),
-                  ),
-                  Text(
-                    _currentAddress,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: _isLocating
-                          ? Color(0xFF703B3B)
-                          : darkPrimaryColor.withOpacity(0.8),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton.icon(
-                    onPressed: _isLocating ? null : _trackLocation,
-                    icon: _isLocating
-                        ? const SizedBox(
-                            width: 50,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.location_on),
-                    label: Text(
-                      _isLocating ? 'Melacak...' : 'Lacak Lokasi Sekarang',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: darkPrimaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
 
                   ElevatedButton(
                     onPressed: () {
@@ -699,13 +788,35 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         foregroundColor: darkPrimaryColor,
 
-        title: Text(
-          "FastFood App",
-          style: TextStyle(
-            color: darkPrimaryColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              "Welcome, $_userName",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: darkPrimaryColor,
+              ),
+            ),
+            // Feedback Icon Button
+            IconButton(
+              icon: Icon(Icons.feedback, color: secondaryAccentColor, size: 30),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    // FIX: Meneruskan parameter wajib
+                    builder: (context) => ApplicationCommentPage(
+                      userEmail: _currentUserEmail,
+                      userName: _userName,
+                    ),
+                  ),
+                );
+              },
+              tooltip: 'Kirim Feedback & Ulasan',
+            ),
+          ],
         ),
       ),
       body: widgetOptions.elementAt(_selectedIndex),
