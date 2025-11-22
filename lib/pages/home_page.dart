@@ -155,37 +155,32 @@ class _HomePageState extends State<HomePage> {
     return format.format(convertedAmount);
   }
 
-  // NEW FUNCTION: Rating Stars Renderer
+  // MODIFIED FUNCTION: Rating Stars Renderer (sesuai permintaan gambar)
   Widget _buildRatingStars(dynamic ratingValue) {
     double rating = 0.0;
     if (ratingValue is num) {
       rating = ratingValue.toDouble();
     } else {
-      // Default ke 4.0 jika tidak ada rating
-      rating = 4.0;
+      rating = 4.0; // Fallback ke 4.0
     }
 
-    int fullStars = rating.floor();
-    bool hasHalfStar = (rating - fullStars) >= 0.5;
+    int commentCount = (rating * 100).toInt(); // Simulasi jumlah komentar
 
-    // Mengubah return untuk menyertakan nilai numerik
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        ...List.generate(5, (index) {
-          if (index < fullStars) {
-            return const Icon(Icons.star, color: Colors.amber, size: 14);
-          } else if (index == fullStars && hasHalfStar) {
-            return const Icon(Icons.star_half, color: Colors.amber, size: 14);
-          } else {
-            return const Icon(Icons.star_border, color: Colors.amber, size: 14);
-          }
-        }),
-        const SizedBox(width: 4), // Memberi sedikit spasi
         Text(
-          rating.toStringAsFixed(1), // Menampilkan rating dengan 1 desimal
-          style: TextStyle(
+          '($commentCount)', // Jumlah komentar simulasi
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        const SizedBox(width: 8),
+        const Icon(Icons.star, color: Colors.amber, size: 14),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(1), // Nilai rating numerik
+          style: const TextStyle(
             fontSize: 12,
-            color: Colors.grey[700],
+            color: darkPrimaryColor,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -262,7 +257,7 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- END: Tombol Feedback & Welcome diatur sejajar ---
+              // HEADER LAMA (Welcome & Feedback) DIHAPUS DARI SINI DAN DIPINDAHKAN KE APP BAR
 
               // --- START: LOKASI DIPINDAHKAN KE HOME TAB ---
               Text(
@@ -494,20 +489,42 @@ class _HomePageState extends State<HomePage> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        // MODIFIED: RATING STARS (using item['rate'] from API)
-                                        _buildRatingStars(item['rate']),
-                                        const SizedBox(height: 4),
+                                        Row(
+                                          // Judul dan Rating berdampingan
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                item['strMeal'] ?? 'Nama Menu',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: darkPrimaryColor,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            // MODIFIED: RATING STARS (di sebelah judul)
+                                            _buildRatingStars(item['rate']),
+                                          ],
+                                        ),
 
-                                        // END RATING STARS
+                                        // NEW: DESKRIPSI MENU (Max 2 baris)
                                         Text(
-                                          item['strMeal'] ?? 'Nama Menu',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: darkPrimaryColor,
+                                          item['description'] ??
+                                              'Deskripsi tidak tersedia.',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey[700],
                                           ),
-                                          maxLines: 1,
+                                          maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
+
+                                        // END NEW DESKRIPSI
                                       ],
                                     ),
                                     Row(
@@ -783,42 +800,44 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: lightBackgroundColor,
+      // MODIFIED: AppBar Baru
       appBar: AppBar(
         backgroundColor: lightBackgroundColor,
         elevation: 0,
         foregroundColor: darkPrimaryColor,
+        automaticallyImplyLeading: false, // Menghilangkan tombol back default
 
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Welcome, $_userName",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: darkPrimaryColor,
-              ),
-            ),
-            // Feedback Icon Button
-            IconButton(
-              icon: Icon(Icons.feedback, color: secondaryAccentColor, size: 30),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    // FIX: Meneruskan parameter wajib
-                    builder: (context) => ApplicationCommentPage(
-                      userEmail: _currentUserEmail,
-                      userName: _userName,
-                    ),
-                  ),
-                );
-              },
-              tooltip: 'Kirim Feedback & Ulasan',
-            ),
-          ],
+        title: Text(
+          "Welcome, $_userName",
+          style: TextStyle(
+            color: darkPrimaryColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
         ),
+        actions: [
+          // Feedback Icon Button
+          IconButton(
+            icon: Icon(Icons.feedback, color: secondaryAccentColor, size: 30),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  // Navigasi ke halaman ApplicationCommentPage
+                  builder: (context) => ApplicationCommentPage(
+                    userEmail: _currentUserEmail,
+                    userName: _userName,
+                  ),
+                ),
+              );
+            },
+            tooltip: 'Kirim Feedback & Ulasan',
+          ),
+          const SizedBox(width: 10),
+        ],
       ),
+
+      // END MODIFIED: AppBar Baru
       body: widgetOptions.elementAt(_selectedIndex),
 
       bottomNavigationBar: BottomNavigationBar(
