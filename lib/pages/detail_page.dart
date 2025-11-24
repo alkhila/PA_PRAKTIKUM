@@ -5,7 +5,7 @@ import '../models/cart_item_model.dart';
 import '../models/comment_model.dart'; // Import Model Komentar
 
 const Color brownColor = Color(0xFF4E342E);
-const Color accentColor = Color(0xFFFFB300);
+const Color accentColor = Color(0xFFFFB300); // Warna Kuning untuk Bintang
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
 const Color lightBackgroundColor = Color(0xFFE1D0B3);
@@ -316,6 +316,8 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final item = widget.item;
     final itemID = item['idMeal'] ?? UniqueKey().toString();
+    // Ambil rating dari item
+    final double rating = (item['rate'] as double?) ?? 0.0;
 
     final isLocalAsset =
         (item['type'] == 'Minuman' &&
@@ -388,7 +390,7 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                   right: 0,
                   height: nameCategoryContentHeight + curveRadius,
                   child: Container(
-                    padding: EdgeInsets.fromLTRB(25, 2 + curveRadius, 25, 0),
+                    padding: EdgeInsets.fromLTRB(25, 10 + curveRadius, 25, 0),
                     decoration: BoxDecoration(
                       color: Color.fromARGB(
                         255,
@@ -404,8 +406,11 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // MODIFIED: Judul dan Rating sejajar dalam satu Row
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
                           children: [
                             Expanded(
                               child: Text(
@@ -419,6 +424,31 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            // NEW FIX: Rating Display (Hanya Rating Value)
+                            if (rating > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 10.0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.star,
+                                      color: accentColor,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      '${rating.toStringAsFixed(1)}', // Hanya Rating Value
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: darkPrimaryColor,
+                                      ),
+                                    ),
+                                    // Jumlah ulasan (Review Count) dihilangkan
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
                         // Kategori Text
@@ -583,8 +613,10 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                     ],
                   ),
                   const Divider(height: 30),
-                  const Text(
-                    'Aplikasi ini adalah tugas akhir Pemrograman Aplikasi Mobile (PAM). Menu yang ditampilkan berasal dari API TheMealDB dan data statis. Harga yang tertera adalah harga simulasi. Menu yang Anda pilih siap disajikan dengan cepat dan nikmat!',
+                  // MODIFIED: Deskripsi dari API
+                  Text(
+                    widget.item['description'] as String? ??
+                        'Deskripsi tidak tersedia.',
                     style: TextStyle(fontSize: 14, color: Colors.black87),
                   ),
                   const SizedBox(height: 20), // Tambahan space di akhir konten

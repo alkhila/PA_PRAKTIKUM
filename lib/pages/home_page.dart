@@ -35,8 +35,6 @@ class _HomePageState extends State<HomePage> {
   final ApiService _apiService = ApiService();
   // FINAL DECLARATION LOKASI & CURRENCY DIHAPUS
 
-  // STATE LOKASI & CURRENCY DIHAPUS
-
   String _searchQuery = '';
   MenuFilter _currentFilter = MenuFilter.all;
 
@@ -45,7 +43,6 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _loadUserInfo();
     _menuFuture = _apiService.fetchMenu();
-    // LOGIC LOAD CURRENCY DIHAPUS
   }
 
   void _loadUserInfo() async {
@@ -90,14 +87,13 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
     await prefs.remove('current_user_email');
-    await prefs.remove('userName');
 
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
   }
 
-  // METHOD LOKASI & CURRENCY DIHAPUS
+  // SEMUA METHOD LOKASI & CURRENCY DIHAPUS
 
   void _openDetailPage(Map<String, dynamic> item) {
     if (_currentUserEmail.isEmpty) {
@@ -113,13 +109,13 @@ class _HomePageState extends State<HomePage> {
         builder: (context) => DetailPage(
           item: item,
           currentUserEmail: _currentUserEmail,
-          currentUserName: _userName, // NEW: Kirim nama pengguna
-        ),
+          currentUserName: _userName,
+        ), // Meneruskan username
       ),
     );
   }
 
-  // MODIFIED FUNCTION: Rating Stars Renderer (sesuai permintaan gambar)
+  // MODIFIED FUNCTION: Rating Stars Renderer (Final: Bintang + Angka)
   Widget _buildRatingStars(dynamic ratingValue) {
     double rating = 0.0;
     if (ratingValue is num) {
@@ -128,28 +124,28 @@ class _HomePageState extends State<HomePage> {
       rating = 4.0; // Fallback
     }
 
-    // Simulasi jumlah komentar: ambil rating, kalikan 100, lalu tambahkan nilai acak kecil agar angkanya berbeda-beda.
-    int commentCount = (rating * 100).toInt();
+    int fullStars = rating.floor();
+    bool hasHalfStar = (rating - fullStars) >= 0.5;
 
+    // Mengubah return untuk hanya menyertakan bintang dan nilai numerik
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star, color: Colors.amber, size: 14),
+        const Icon(
+          Icons.star,
+          color: Colors.amber,
+          size: 14,
+        ), // Hanya satu bintang ikonik
         const SizedBox(width: 4),
         Text(
-          rating.toStringAsFixed(1), // Nilai rating numerik (e.g., 4.5)
+          rating.toStringAsFixed(1), // Nilai rating numerik
           style: const TextStyle(
             fontSize: 12,
             color: darkPrimaryColor,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(width: 8),
-        // Simpan jumlah komentar di item['commentCount'] atau simulasikan
-        Text(
-          '($commentCount)',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
+        // Jumlah komentar dihapus
       ],
     );
   }
@@ -162,7 +158,6 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- LOKASI DAN TOMBOL LACAK DIHAPUS TOTAL DARI SINI ---
               TextField(
                 onChanged: (value) {
                   setState(() {
@@ -284,7 +279,7 @@ class _HomePageState extends State<HomePage> {
                         (item['type'] == 'Minuman' &&
                         (item['strMealThumb'] as String).startsWith('assets/'));
 
-                    // Harga di sini default IDR karena fitur konversi lokasi dihapus
+                    // Harga default IDR
                     final double price = item['price'] is num
                         ? item['price'].toDouble()
                         : 0.0;
@@ -364,12 +359,12 @@ class _HomePageState extends State<HomePage> {
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
-                                            // MODIFIED: RATING STARS (di sebelah judul)
+                                            // RATING BARU (Bintang + Angka)
                                             _buildRatingStars(item['rate']),
                                           ],
                                         ),
 
-                                        // NEW: DESKRIPSI MENU (Max 2 baris)
+                                        // DESKRIPSI MENU (Max 2 baris)
                                         Text(
                                           item['description'] ??
                                               'Deskripsi tidak tersedia.',
@@ -380,8 +375,6 @@ class _HomePageState extends State<HomePage> {
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                         ),
-
-                                        // END NEW DESKRIPSI
                                       ],
                                     ),
                                     Row(
