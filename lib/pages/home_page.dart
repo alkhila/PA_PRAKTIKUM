@@ -11,6 +11,8 @@ import 'login_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'checkout_detail_page.dart';
 import 'application_comment_page.dart';
+import 'favorite_page.dart'; // Import Favorite Page
+import '../models/favorite_model.dart'; // NEW: Import Favorite Model
 // import '../services/currency_service.dart'; // Dihapus
 
 const Color darkPrimaryColor = Color(0xFF703B3B);
@@ -36,6 +38,9 @@ class _HomePageState extends State<HomePage> {
   late Future<List<dynamic>> _menuFuture;
 
   final ApiService _apiService = ApiService();
+  final favoriteBox = Hive.box<FavoriteModel>(
+    'favoriteBox',
+  ); // NEW: Inisialisasi Box
 
   String _searchQuery = '';
   MenuFilter _currentFilter = MenuFilter.all;
@@ -113,6 +118,52 @@ class _HomePageState extends State<HomePage> {
         ), // Meneruskan username
       ),
     );
+  }
+
+  // NEW: Fungsi untuk toggle favorit dari HomePage
+  void _toggleFavorite(Map<String, dynamic> item) async {
+    if (_currentUserEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mohon login untuk menggunakan fitur favorit.'),
+        ),
+      );
+      return;
+    }
+
+    final String itemId = item['idMeal'] ?? UniqueKey().toString();
+    final existingFavoriteKey = favoriteBox.keys.firstWhere(
+      (key) =>
+          favoriteBox.get(key)?.idMeal == itemId &&
+          favoriteBox.get(key)?.userEmail == _currentUserEmail,
+      orElse: () => null,
+    );
+
+    if (existingFavoriteKey != null) {
+      // Hapus dari favorit
+      await favoriteBox.delete(existingFavoriteKey);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${item['strMeal']} dihapus dari favorit.'),
+          backgroundColor: secondaryAccentColor,
+        ),
+      );
+    } else {
+      // Tambahkan ke favorit
+      final newFavorite = FavoriteModel(
+        idMeal: itemId,
+        strMeal: item['strMeal'] ?? 'Unknown Item',
+        strMealThumb: item['strMealThumb'] ?? '',
+        userEmail: _currentUserEmail,
+      );
+      await favoriteBox.add(newFavorite);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${item['strMeal']} ditambahkan ke favorit!'),
+          backgroundColor: darkPrimaryColor,
+        ),
+      );
+    }
   }
 
   // MODIFIED FUNCTION: Rating Stars Renderer
@@ -257,158 +308,212 @@ class _HomePageState extends State<HomePage> {
                   );
                 }
 
-                return GridView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 0.7,
-                    crossAxisSpacing: 15,
-                    mainAxisSpacing: 15,
-                  ),
-                  itemCount: filteredList.length,
-                  itemBuilder: (context, index) {
-                    final item = filteredList[index];
+                // WRAPPED: Menggunakan ValueListenableBuilder untuk mendengarkan perubahan favorit
+                return ValueListenableBuilder(
+                  valueListenable: favoriteBox.listenable(),
+                  builder: (context, Box<FavoriteModel> box, _) {
+                    return GridView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.7,
+                            crossAxisSpacing: 15,
+                            mainAxisSpacing: 15,
+                          ),
+                      itemCount: filteredList.length,
+                      itemBuilder: (context, index) {
+                        final item = filteredList[index];
+                        final itemId = item['idMeal'];
 
-                    final isLocalAsset =
-                        (item['type'] == 'Minuman' &&
-                        (item['strMealThumb'] as String).startsWith('assets/'));
+                        // NEW: Cek status favorit untuk item ini
+                        final isFavorite = box.values.any(
+                          (favItem) =>
+                              favItem.idMeal == itemId &&
+                              favItem.userEmail == _currentUserEmail,
+                        );
 
-                    // Harga default IDR
-                    final double price = item['price'] is num
-                        ? item['price'].toDouble()
-                        : 0.0;
+                        final isLocalAsset =
+                            (item['type'] == 'Minuman' &&
+                            (item['strMealThumb'] as String).startsWith(
+                              'assets/',
+                            ));
 
-                    return InkWell(
-                      onTap: () => _openDetailPage(item),
-                      borderRadius: BorderRadius.circular(15),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
+                        // Harga default IDR
+                        final double price = item['price'] is num
+                            ? item['price'].toDouble()
+                            : 0.0;
+
+                        return InkWell(
+                          onTap: () => _openDetailPage(item),
                           borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: darkPrimaryColor.withOpacity(0.1),
-                              spreadRadius: 1,
-                              blurRadius: 3,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: ClipRRect(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(15),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(15),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: darkPrimaryColor.withOpacity(0.1),
+                                  spreadRadius: 1,
+                                  blurRadius: 3,
+                                  offset: const Offset(0, 2),
                                 ),
-                                child: isLocalAsset
-                                    ? Image.asset(
-                                        item['strMealThumb'],
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                      )
-                                    : Image.network(
-                                        item['strMealThumb'] ??
-                                            'https://via.placeholder.com/150',
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                      ),
-                              ),
+                              ],
                             ),
-                            Expanded(
-                              flex: 1,
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  10,
-                                  8,
-                                  10,
-                                  8,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // --- IMAGE SECTION ---
+                                Stack(
                                   children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          // Judul dan Rating berdampingan
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                item['strMeal'] ?? 'Nama Menu',
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: darkPrimaryColor,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            const BorderRadius.vertical(
+                                              top: Radius.circular(15),
                                             ),
-                                            // RATING BARU (Bintang + Angka)
-                                            _buildRatingStars(item['rate']),
-                                          ],
-                                        ),
-
-                                        // DESKRIPSI MENU (Max 2 baris)
-                                        Text(
-                                          item['description'] ??
-                                              'Deskripsi tidak tersedia.',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.grey[700],
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
+                                        child: isLocalAsset
+                                            ? Image.asset(
+                                                item['strMealThumb'],
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                              )
+                                            : Image.network(
+                                                item['strMealThumb'] ??
+                                                    'https://via.placeholder.com/150',
+                                                fit: BoxFit.cover,
+                                                width: double.infinity,
+                                              ),
+                                      ),
                                     ),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        // HARGA DEFAULT IDR
-                                        Text(
-                                          'Rp ${price.toStringAsFixed(0)}',
-                                          style: const TextStyle(
-                                            color: darkPrimaryColor,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                          ),
+                                    // NEW: Tombol Favorit
+                                    Positioned(
+                                      top: 5,
+                                      right: 5,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.3),
+                                          shape: BoxShape.circle,
                                         ),
-                                        // END HARGA DEFAULT
-                                        Container(
-                                          padding: const EdgeInsets.all(5),
-                                          decoration: BoxDecoration(
-                                            color: darkPrimaryColor,
-                                            shape: BoxShape.circle,
+                                        child: IconButton(
+                                          padding: EdgeInsets.zero,
+                                          iconSize: 20,
+                                          icon: Icon(
+                                            isFavorite
+                                                ? Icons.favorite
+                                                : Icons.favorite_border,
+                                            color: isFavorite
+                                                ? Colors.red
+                                                : Colors.white,
                                           ),
-                                          child: const Icon(
-                                            Icons.add,
-                                            color: Colors.white,
-                                            size: 20,
-                                          ),
+                                          onPressed: () =>
+                                              _toggleFavorite(item),
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ],
                                 ),
-                              ),
+                                // --- CONTENT SECTION ---
+                                Expanded(
+                                  flex: 1,
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      10,
+                                      8,
+                                      10,
+                                      8,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              // Judul dan Rating berdampingan
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    item['strMeal'] ??
+                                                        'Nama Menu',
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: darkPrimaryColor,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                // RATING BARU (Bintang + Angka)
+                                                _buildRatingStars(item['rate']),
+                                              ],
+                                            ),
+
+                                            // DESKRIPSI MENU (Max 2 baris)
+                                            Text(
+                                              item['description'] ??
+                                                  'Deskripsi tidak tersedia.',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.grey[700],
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            // HARGA DEFAULT IDR
+                                            Text(
+                                              'Rp ${price.toStringAsFixed(0)}',
+                                              style: const TextStyle(
+                                                color: darkPrimaryColor,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            // END HARGA DEFAULT
+                                            Container(
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: BoxDecoration(
+                                                color: darkPrimaryColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.add,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -607,13 +712,19 @@ class _HomePageState extends State<HomePage> {
     return const LBSPage();
   }
 
+  // NEW: Widget untuk Halaman Favorit
+  Widget _buildFavoritePage() {
+    return const FavoritePage();
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> widgetOptions = <Widget>[
       _buildMenuCatalog(),
       _buildLBSPage(),
       _buildCartPage(),
-      _buildProfilePage(),
+      _buildFavoritePage(), // NEW: Halaman Favorit ada di index 3
+      _buildProfilePage(), // Profile pindah ke index 4
     ];
 
     return Scaffold(
@@ -704,6 +815,7 @@ class _HomePageState extends State<HomePage> {
       // END MODIFIED: AppBar Baru
       body: widgetOptions.elementAt(_selectedIndex),
 
+      // MODIFIED: Tambahkan item "Favorit" ke Bottom Nav Bar
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -722,7 +834,12 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: lightBackgroundColor,
           ),
           BottomNavigationBarItem(
-            label: 'Profil',
+            label: 'Favorit', // NEW: Item Favorit (Index 3)
+            icon: Icon(Icons.favorite),
+            backgroundColor: lightBackgroundColor,
+          ),
+          BottomNavigationBarItem(
+            label: 'Profil', // Profil (Index 4)
             icon: Icon(Icons.person),
             backgroundColor: lightBackgroundColor,
           ),

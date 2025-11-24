@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/cart_item_model.dart';
 import '../models/comment_model.dart'; // Import Model Komentar
+import '../models/favorite_model.dart'; // NEW: Import FavoriteModel
 
 const Color brownColor = Color(0xFF4E342E);
 const Color accentColor = Color(0xFFFFB300); // Warna Kuning untuk Bintang
@@ -240,6 +241,10 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
   final double curveRadius = 35.0;
   final double nameCategoryContentHeight = 140.0;
 
+  // NEW: Hive Box for Favorites
+  final favoriteBox = Hive.box<FavoriteModel>('favoriteBox');
+  late bool _isFavorite;
+
   @override
   void initState() {
     super.initState();
@@ -255,6 +260,13 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
       _basePrice = 0.0;
     }
     _itemPrice = _basePrice;
+
+    // NEW: Cek status favorit saat inisialisasi
+    _isFavorite = favoriteBox.values.any(
+      (item) =>
+          item.idMeal == widget.item['idMeal'] &&
+          item.userEmail == widget.currentUserEmail,
+    );
   }
 
   @override
@@ -296,6 +308,58 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
       ),
     );
     Navigator.pop(context);
+  }
+
+  // NEW: Fungsi untuk menambah/menghapus dari favorit
+  void _toggleFavorite() async {
+    if (widget.currentUserEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mohon login untuk menggunakan fitur favorit.'),
+        ),
+      );
+      return;
+    }
+
+    final String itemId = widget.item['idMeal'] ?? UniqueKey().toString();
+    final existingFavoriteKey = favoriteBox.keys.firstWhere(
+      (key) =>
+          favoriteBox.get(key)?.idMeal == itemId &&
+          favoriteBox.get(key)?.userEmail == widget.currentUserEmail,
+      orElse: () => null,
+    );
+
+    if (existingFavoriteKey != null) {
+      // Hapus dari favorit
+      await favoriteBox.delete(existingFavoriteKey);
+      setState(() {
+        _isFavorite = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.item['strMeal']} dihapus dari favorit.'),
+          backgroundColor: secondaryAccentColor,
+        ),
+      );
+    } else {
+      // Tambahkan ke favorit
+      final newFavorite = FavoriteModel(
+        idMeal: itemId,
+        strMeal: widget.item['strMeal'] ?? 'Unknown Item',
+        strMealThumb: widget.item['strMealThumb'] ?? '',
+        userEmail: widget.currentUserEmail,
+      );
+      await favoriteBox.add(newFavorite);
+      setState(() {
+        _isFavorite = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${widget.item['strMeal']} ditambahkan ke favorit!'),
+          backgroundColor: darkPrimaryColor,
+        ),
+      );
+    }
   }
 
   Widget _buildQuantityButton(IconData icon, VoidCallback onPressed) {
@@ -380,6 +444,26 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                       child: const Icon(Icons.arrow_back, color: Colors.white),
                     ),
                     onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+
+                // NEW: Favorite Button
+                Positioned(
+                  top: 40,
+                  right: 20,
+                  child: IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: _isFavorite ? Colors.red : Colors.white,
+                      ),
+                    ),
+                    onPressed: _toggleFavorite,
                   ),
                 ),
 
