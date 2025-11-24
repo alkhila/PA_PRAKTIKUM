@@ -19,6 +19,9 @@ const Color lightBackgroundColor = Color(0xFFE1D0B3);
 
 enum MenuFilter { all, makanan, minuman }
 
+// NEW: Enum untuk opsi di Hamburger Menu
+enum MenuChoice { applicationComment, timeConverter, logout }
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -33,7 +36,6 @@ class _HomePageState extends State<HomePage> {
   late Future<List<dynamic>> _menuFuture;
 
   final ApiService _apiService = ApiService();
-  // FINAL DECLARATION LOKASI & CURRENCY DIHAPUS
 
   String _searchQuery = '';
   MenuFilter _currentFilter = MenuFilter.all;
@@ -93,8 +95,6 @@ class _HomePageState extends State<HomePage> {
     ).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
   }
 
-  // SEMUA METHOD LOKASI & CURRENCY DIHAPUS
-
   void _openDetailPage(Map<String, dynamic> item) {
     if (_currentUserEmail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,7 +115,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // MODIFIED FUNCTION: Rating Stars Renderer (Final: Bintang + Angka)
+  // MODIFIED FUNCTION: Rating Stars Renderer
   Widget _buildRatingStars(dynamic ratingValue) {
     double rating = 0.0;
     if (ratingValue is num) {
@@ -124,18 +124,10 @@ class _HomePageState extends State<HomePage> {
       rating = 4.0; // Fallback
     }
 
-    int fullStars = rating.floor();
-    bool hasHalfStar = (rating - fullStars) >= 0.5;
-
-    // Mengubah return untuk hanya menyertakan bintang dan nilai numerik
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(
-          Icons.star,
-          color: Colors.amber,
-          size: 14,
-        ), // Hanya satu bintang ikonik
+        const Icon(Icons.star, color: Colors.amber, size: 14), // Bintang visual
         const SizedBox(width: 4),
         Text(
           rating.toStringAsFixed(1), // Nilai rating numerik
@@ -145,7 +137,6 @@ class _HomePageState extends State<HomePage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        // Jumlah komentar dihapus
       ],
     );
   }
@@ -154,10 +145,16 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            0,
+          ), // Mengubah padding atas menjadi 20
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // --- HEADER 'WELCOME' DAN ICON FEEDBACK DIHAPUS DARI SINI ---
               TextField(
                 onChanged: (value) {
                   setState(() {
@@ -521,39 +518,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 20),
 
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const TimeConverterPage(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: darkPrimaryColor,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.access_time),
-                        SizedBox(width: 8),
-                        Text(
-                          'Konversi Waktu',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  // TOMBOL KONVERSI WAKTU DIHAPUS DARI SINI
+                  // SizedBox(height: 20) yang lama dihilangkan
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.push(
@@ -582,20 +548,22 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                   const SizedBox(height: 40),
-                  ElevatedButton.icon(
-                    onPressed: _confirmLogout,
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                  // TOMBOL LOGOUT DIHAPUS DARI SINI
                 ],
               ),
             ),
+            // Tombol Logout asli dipindah ke sini agar tidak double
+            ElevatedButton.icon(
+              onPressed: _confirmLogout,
+              icon: const Icon(Icons.logout),
+              label: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -650,15 +618,15 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       backgroundColor: lightBackgroundColor,
-      // MODIFIED: AppBar Baru
+      // MODIFIED: AppBar Baru dengan Hamburger Menu
       appBar: AppBar(
         backgroundColor: lightBackgroundColor,
         elevation: 0,
         foregroundColor: darkPrimaryColor,
-        automaticallyImplyLeading: false, // Menghilangkan tombol back default
+        automaticallyImplyLeading: false,
 
         title: Text(
-          "Welcome, $_userName",
+          "Welcome, $_userName", // Judul AppBar menampilkan Welcome
           style: TextStyle(
             color: darkPrimaryColor,
             fontWeight: FontWeight.bold,
@@ -666,22 +634,68 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         actions: [
-          // Feedback Icon Button
-          IconButton(
-            icon: Icon(Icons.feedback, color: secondaryAccentColor, size: 30),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  // Navigasi ke halaman ApplicationCommentPage
-                  builder: (context) => ApplicationCommentPage(
-                    userEmail: _currentUserEmail,
-                    userName: _userName,
-                  ),
-                ),
-              );
+          // Hamburger Menu Button
+          PopupMenuButton<MenuChoice>(
+            icon: Icon(Icons.menu, color: darkPrimaryColor, size: 30),
+            onSelected: (MenuChoice result) {
+              switch (result) {
+                case MenuChoice.applicationComment:
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ApplicationCommentPage(
+                        userEmail: _currentUserEmail,
+                        userName: _userName,
+                      ),
+                    ),
+                  );
+                  break;
+                case MenuChoice.timeConverter:
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TimeConverterPage(),
+                    ),
+                  );
+                  break;
+                case MenuChoice.logout:
+                  _confirmLogout();
+                  break;
+              }
             },
-            tooltip: 'Kirim Feedback & Ulasan',
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<MenuChoice>>[
+              const PopupMenuItem<MenuChoice>(
+                value: MenuChoice.applicationComment,
+                child: Row(
+                  children: [
+                    Icon(Icons.feedback, color: darkPrimaryColor),
+                    SizedBox(width: 10),
+                    Text('Komen Aplikasi'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<MenuChoice>(
+                value: MenuChoice.timeConverter,
+                child: Row(
+                  children: [
+                    Icon(Icons.access_time, color: darkPrimaryColor),
+                    SizedBox(width: 10),
+                    Text('Konversi Waktu'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<MenuChoice>(
+                value: MenuChoice.logout,
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 10),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 10),
         ],
