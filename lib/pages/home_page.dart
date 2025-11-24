@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import 'time_converter_page.dart';
 import '../services/api_service.dart';
-// import '../services/location_service.dart'; // Dihapus
 import 'cart_page.dart';
 import 'lbs_page.dart';
 import 'detail_page.dart';
@@ -11,9 +12,11 @@ import 'login_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'checkout_detail_page.dart';
 import 'application_comment_page.dart';
-import 'favorite_page.dart'; // Import Favorite Page
-import '../models/favorite_model.dart'; // NEW: Import Favorite Model
-// import '../services/currency_service.dart'; // Dihapus
+import 'favorite_page.dart';
+import '../models/favorite_model.dart';
+import 'edit_profile_page.dart';
+import 'checkout_detail_page.dart';
+import 'package:flutter/foundation.dart'; // Import untuk kIsWeb
 
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
@@ -21,7 +24,6 @@ const Color lightBackgroundColor = Color(0xFFE1D0B3);
 
 enum MenuFilter { all, makanan, minuman }
 
-// NEW: Enum untuk opsi di Hamburger Menu
 enum MenuChoice { applicationComment, timeConverter, logout }
 
 class HomePage extends StatefulWidget {
@@ -38,12 +40,17 @@ class _HomePageState extends State<HomePage> {
   late Future<List<dynamic>> _menuFuture;
 
   final ApiService _apiService = ApiService();
-  final favoriteBox = Hive.box<FavoriteModel>(
-    'favoriteBox',
-  ); // NEW: Inisialisasi Box
+  final favoriteBox = Hive.box<FavoriteModel>('favoriteBox');
 
   String _searchQuery = '';
   MenuFilter _currentFilter = MenuFilter.all;
+
+  String _userAddress = 'Alamat belum diatur';
+  String _profileImagePath = '';
+
+  // FIXED CONSTANTS
+  final double avatarRadius = 60;
+  final double headerHeight = 150; // Ketinggian header
 
   @override
   void initState() {
@@ -57,6 +64,8 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _userName = prefs.getString('userName') ?? 'FastFoodie';
       _currentUserEmail = prefs.getString('current_user_email') ?? '';
+      _userAddress = prefs.getString('user_address') ?? 'Alamat belum diatur';
+      _profileImagePath = prefs.getString('profile_image_path') ?? '';
     });
   }
 
@@ -94,10 +103,69 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
     await prefs.remove('current_user_email');
+    await prefs.remove('user_address');
+    await prefs.remove('profile_image_path');
 
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
+  }
+
+  Future<void> _openEditProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const EditProfilePage()),
+    );
+    _loadUserInfo();
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (BuildContext context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: Icon(Icons.photo_library, color: darkPrimaryColor),
+              title: const Text('Pilih dari Galeri'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImageFromSource(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.camera_alt, color: darkPrimaryColor),
+              title: const Text('Ambil Foto Baru'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImageFromSource(ImageSource.camera);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _pickImageFromSource(ImageSource source) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? pickedFile = await picker.pickImage(
+      source: source,
+      imageQuality: 55,
+    );
+
+    if (pickedFile != null) {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Di Web/Mobile, simpan path/url
+      await prefs.setString('profile_image_path', pickedFile.path);
+      _loadUserInfo();
+    }
   }
 
   void _openDetailPage(Map<String, dynamic> item) {
@@ -115,12 +183,11 @@ class _HomePageState extends State<HomePage> {
           item: item,
           currentUserEmail: _currentUserEmail,
           currentUserName: _userName,
-        ), // Meneruskan username
+        ),
       ),
     );
   }
 
-  // NEW: Fungsi untuk toggle favorit dari HomePage
   void _toggleFavorite(Map<String, dynamic> item) async {
     if (_currentUserEmail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -140,7 +207,6 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (existingFavoriteKey != null) {
-      // Hapus dari favorit
       await favoriteBox.delete(existingFavoriteKey);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -149,7 +215,6 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     } else {
-      // Tambahkan ke favorit
       final newFavorite = FavoriteModel(
         idMeal: itemId,
         strMeal: item['strMeal'] ?? 'Unknown Item',
@@ -166,22 +231,21 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // MODIFIED FUNCTION: Rating Stars Renderer
   Widget _buildRatingStars(dynamic ratingValue) {
     double rating = 0.0;
     if (ratingValue is num) {
       rating = ratingValue.toDouble();
     } else {
-      rating = 4.0; // Fallback
+      rating = 4.0;
     }
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.star, color: Colors.amber, size: 14), // Bintang visual
+        const Icon(Icons.star, color: Colors.amber, size: 14),
         const SizedBox(width: 4),
         Text(
-          rating.toStringAsFixed(1), // Nilai rating numerik
+          rating.toStringAsFixed(1),
           style: const TextStyle(
             fontSize: 12,
             color: darkPrimaryColor,
@@ -196,16 +260,10 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            0,
-          ), // Mengubah padding atas menjadi 20
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- HEADER 'WELCOME' DAN ICON FEEDBACK DIHAPUS DARI SINI ---
               TextField(
                 onChanged: (value) {
                   setState(() {
@@ -215,7 +273,6 @@ class _HomePageState extends State<HomePage> {
                 decoration: InputDecoration(
                   hintText: "Search...",
                   prefixIcon: Icon(Icons.search, color: darkPrimaryColor),
-
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(15),
                     borderSide: BorderSide.none,
@@ -229,7 +286,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(height: 15),
-
               Padding(
                 padding: const EdgeInsets.only(bottom: 5.0),
                 child: Text(
@@ -261,7 +317,6 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-
         Expanded(
           child: FutureBuilder<List<dynamic>>(
             future: _menuFuture,
@@ -308,7 +363,6 @@ class _HomePageState extends State<HomePage> {
                   );
                 }
 
-                // WRAPPED: Menggunakan ValueListenableBuilder untuk mendengarkan perubahan favorit
                 return ValueListenableBuilder(
                   valueListenable: favoriteBox.listenable(),
                   builder: (context, Box<FavoriteModel> box, _) {
@@ -329,7 +383,6 @@ class _HomePageState extends State<HomePage> {
                         final item = filteredList[index];
                         final itemId = item['idMeal'];
 
-                        // NEW: Cek status favorit untuk item ini
                         final isFavorite = box.values.any(
                           (favItem) =>
                               favItem.idMeal == itemId &&
@@ -342,7 +395,6 @@ class _HomePageState extends State<HomePage> {
                               'assets/',
                             ));
 
-                        // Harga default IDR
                         final double price = item['price'] is num
                             ? item['price'].toDouble()
                             : 0.0;
@@ -366,17 +418,15 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // --- IMAGE SECTION ---
-                                Stack(
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: ClipRRect(
-                                        borderRadius:
-                                            const BorderRadius.vertical(
-                                              top: Radius.circular(15),
-                                            ),
-                                        child: isLocalAsset
+                                Expanded(
+                                  flex: 2,
+                                  child: ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(15),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        isLocalAsset
                                             ? Image.asset(
                                                 item['strMealThumb'],
                                                 fit: BoxFit.cover,
@@ -388,36 +438,36 @@ class _HomePageState extends State<HomePage> {
                                                 fit: BoxFit.cover,
                                                 width: double.infinity,
                                               ),
-                                      ),
-                                    ),
-                                    // NEW: Tombol Favorit
-                                    Positioned(
-                                      top: 5,
-                                      right: 5,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.3),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: IconButton(
-                                          padding: EdgeInsets.zero,
-                                          iconSize: 20,
-                                          icon: Icon(
-                                            isFavorite
-                                                ? Icons.favorite
-                                                : Icons.favorite_border,
-                                            color: isFavorite
-                                                ? Colors.red
-                                                : Colors.white,
+                                        Positioned(
+                                          top: 5,
+                                          right: 5,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withOpacity(
+                                                0.3,
+                                              ),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: IconButton(
+                                              padding: EdgeInsets.zero,
+                                              iconSize: 20,
+                                              icon: Icon(
+                                                isFavorite
+                                                    ? Icons.favorite
+                                                    : Icons.favorite_border,
+                                                color: isFavorite
+                                                    ? Colors.red
+                                                    : Colors.white,
+                                              ),
+                                              onPressed: () =>
+                                                  _toggleFavorite(item),
+                                            ),
                                           ),
-                                          onPressed: () =>
-                                              _toggleFavorite(item),
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
-                                // --- CONTENT SECTION ---
                                 Expanded(
                                   flex: 1,
                                   child: Padding(
@@ -438,7 +488,6 @@ class _HomePageState extends State<HomePage> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Row(
-                                              // Judul dan Rating berdampingan
                                               mainAxisAlignment:
                                                   MainAxisAlignment
                                                       .spaceBetween,
@@ -459,12 +508,9 @@ class _HomePageState extends State<HomePage> {
                                                         TextOverflow.ellipsis,
                                                   ),
                                                 ),
-                                                // RATING BARU (Bintang + Angka)
                                                 _buildRatingStars(item['rate']),
                                               ],
                                             ),
-
-                                            // DESKRIPSI MENU (Max 2 baris)
                                             Text(
                                               item['description'] ??
                                                   'Deskripsi tidak tersedia.',
@@ -481,7 +527,6 @@ class _HomePageState extends State<HomePage> {
                                           mainAxisAlignment:
                                               MainAxisAlignment.spaceBetween,
                                           children: [
-                                            // HARGA DEFAULT IDR
                                             Text(
                                               'Rp ${price.toStringAsFixed(0)}',
                                               style: const TextStyle(
@@ -490,7 +535,6 @@ class _HomePageState extends State<HomePage> {
                                                 fontSize: 14,
                                               ),
                                             ),
-                                            // END HARGA DEFAULT
                                             Container(
                                               padding: const EdgeInsets.all(5),
                                               decoration: BoxDecoration(
@@ -532,101 +576,165 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // REVISED: Struktur field diperbaiki agar sesuai gambar referensi
+  Widget _buildProfileInfoField({
+    required String label,
+    required String value,
+    required IconData icon,
+    bool isPassword = false,
+    bool isDeliveryAddress = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label (Nama/Email/Alamat) - Dibuat kecil dan diletakkan di atas input
+        Padding(
+          padding: const EdgeInsets.only(left: 10.0, bottom: 4.0),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: darkPrimaryColor.withOpacity(0.7),
+            ),
+          ),
+        ),
+        // Input Container/Box (White box)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(
+              20,
+            ), // Border radius diperbesar agar lebih melengkung
+            border: Border.all(color: secondaryAccentColor.withOpacity(0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                spreadRadius: 0,
+                blurRadius: 5,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  isPassword ? '••••••••' : value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: isPassword ? FontWeight.bold : FontWeight.w500,
+                    color: isPassword ? Colors.black : darkPrimaryColor,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: isDeliveryAddress ? 2 : 1,
+                ),
+              ),
+              // Icon berada di dalam field, di kanan
+              Icon(icon, color: darkPrimaryColor.withOpacity(0.7), size: 20),
+            ],
+          ),
+        ),
+        const SizedBox(height: 15), // Jarak antar field
+      ],
+    );
+  }
+
+  // MODIFIED: Implementasi UI Profil - Final Structural Fix
   Widget _buildProfilePage() {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
+    // NEW: Handle crash on web (since File() is unsupported)
+    final bool isWeb = kIsWeb;
+    // FIX IMAGE LOGIC: Jika path ada, kita asumsikan gambar bisa ditampilkan
+    final bool hasImagePath = _profileImagePath.isNotEmpty;
+
+    // FIXED CONSTANTS
+    final Color headerColorStart = darkPrimaryColor;
+    final Color headerColorEnd = secondaryAccentColor;
+    final double avatarOverlap = 60.0; // Jarak avatar menonjol ke bawah
+
+    ImageProvider? imageProvider;
+    if (hasImagePath) {
+      if (isWeb) {
+        // Web: Gunakan NetworkImage untuk blob URL
+        imageProvider = NetworkImage(_profileImagePath);
+      } else {
+        // Mobile/Desktop: Check file existence before FileImage
+        if (File(_profileImagePath).existsSync()) {
+          imageProvider = FileImage(File(_profileImagePath));
+        }
+      }
+    }
+
+    // Perhitungan space kompensasi agar konten fields terangkat pas di bawah avatar
+    final double verticalCompensationSpace =
+        avatarRadius * 2 + 160; // 60*2 + 20 = 140px (Nilai baru)
+
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 100),
+      child: Stack(
+        alignment: Alignment.topCenter,
+        children: <Widget>[
+          // 1. Header Background (Curved Bottom)
+          Container(
+            height: headerHeight,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [headerColorStart, headerColorEnd],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(50),
+              ),
+            ),
+          ),
+
+          // 2. Profile Details/Content (FIELDS)
+          // Menggunakan Transform.translate untuk menggeser konten ke atas (menghilangkan gap)
+          Transform.translate(
+            offset: Offset(0, -avatarOverlap), // PULL UP CONTENT 60px
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 30.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: darkPrimaryColor, width: 2),
-                    ),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/alza.jpg',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                          Icons.person,
-                          size: 60,
-                          color: darkPrimaryColor,
-                        ),
-                      ),
-                    ),
+                  // --- Kompensasi Ruang di atas Fields ---
+                  // Memberikan ruang yang dihilangkan oleh Transform.translate
+                  // FIXED: Disesuaikan menjadi 140px untuk memastikan clearance visual
+                  SizedBox(height: verticalCompensationSpace),
+
+                  // --- Profile Fields ---
+                  _buildProfileInfoField(
+                    label: 'Nama',
+                    value: _userName,
+                    icon: Icons.person_outline,
+                  ),
+                  _buildProfileInfoField(
+                    label: 'Email',
+                    value: _currentUserEmail,
+                    icon: Icons.email_outlined,
+                  ),
+                  _buildProfileInfoField(
+                    label: 'Alamat Pengiriman',
+                    value: _userAddress,
+                    icon: Icons.location_on_outlined,
+                    isDeliveryAddress: true,
+                  ),
+                  _buildProfileInfoField(
+                    label: 'Kata Sandi',
+                    value: '••••••••',
+                    icon: Icons.lock_outline,
+                    isPassword: true,
                   ),
                   const SizedBox(height: 10),
 
-                  const Text(
-                    'Alkhila Syadza Fariha / 124230090',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: darkPrimaryColor,
-                    ),
-                  ),
-
-                  const Text(
-                    'Mahasiswa Pemrograman Aplikasi Mobile',
-                    style: TextStyle(color: darkPrimaryColor, fontSize: 14),
-                  ),
-
-                  Card(
-                    elevation: 4,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Kesan:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: darkPrimaryColor,
-                            ),
-                          ),
-                          const Text(
-                            'Saya sangat sangat mempunyai kesan dengan mata kuliah mobile ini, lumayan ngos ngosan.',
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Saran:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: darkPrimaryColor,
-                            ),
-                          ),
-                          const Text(
-                            'Tolong dikasih deadline tugas akhir yang lebih panjang agar lebih optimal dalam pengerjaannya.',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const Divider(height: 40, color: Colors.grey),
-
-                  Text(
-                    'Username: $_userName',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: secondaryAccentColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // TOMBOL KONVERSI WAKTU DIHAPUS DARI SINI
-                  // SizedBox(height: 20) yang lama dihilangkan
-                  ElevatedButton.icon(
-                    onPressed: () {
+                  // 5. Order History
+                  GestureDetector(
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -634,43 +742,148 @@ class _HomePageState extends State<HomePage> {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.history, color: Colors.white),
-                    label: const Text(
-                      'Riwayat Pembelian',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 15,
+                        horizontal: 15,
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF703B3B),
-                      foregroundColor: darkPrimaryColor,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: secondaryAccentColor.withOpacity(0.5),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            spreadRadius: 0,
+                            blurRadius: 5,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Riwayat Pembelian',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: darkPrimaryColor,
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            color: darkPrimaryColor.withOpacity(0.7),
+                            size: 18,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 40),
-                  // TOMBOL LOGOUT DIHAPUS DARI SINI
+                  const SizedBox(height: 30),
+
+                  // --- Action Buttons ---
+                  Row(
+                    children: [
+                      // Edit Profile Button
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _openEditProfile,
+                          icon: const Icon(
+                            Icons.edit_note_sharp,
+                            color: Colors.white,
+                          ),
+                          label: const Text(
+                            'Edit Profile',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: darkPrimaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      // Logout Button
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _confirmLogout,
+                          icon: const Icon(
+                            Icons.logout,
+                            color: darkPrimaryColor,
+                          ),
+                          label: const Text(
+                            'Log out',
+                            style: TextStyle(color: darkPrimaryColor),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            side: BorderSide(color: darkPrimaryColor, width: 2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-            // Tombol Logout asli dipindah ke sini agar tidak double
-            ElevatedButton.icon(
-              onPressed: _confirmLogout,
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
+          ),
+
+          // 3. Profile Picture (Diposisikan di tengah area overlap)
+          Positioned(
+            top: headerHeight - avatarRadius, // 150 - 60 = 90px dari atas
+            child: Center(
+              child: Stack(
+                children: [
+                  // Profile Picture
+                  CircleAvatar(
+                    radius: avatarRadius, // 60
+                    backgroundColor: Colors.white,
+                    backgroundImage: imageProvider,
+                    child: imageProvider == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 60,
+                            color: darkPrimaryColor,
+                          )
+                        : null,
+                  ),
+                  // Add/Change Photo Button
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: InkWell(
+                      onTap: _showImageSourceDialog,
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: darkPrimaryColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -712,7 +925,6 @@ class _HomePageState extends State<HomePage> {
     return const LBSPage();
   }
 
-  // NEW: Widget untuk Halaman Favorit
   Widget _buildFavoritePage() {
     return const FavoritePage();
   }
@@ -723,21 +935,19 @@ class _HomePageState extends State<HomePage> {
       _buildMenuCatalog(),
       _buildLBSPage(),
       _buildCartPage(),
-      _buildFavoritePage(), // NEW: Halaman Favorit ada di index 3
-      _buildProfilePage(), // Profile pindah ke index 4
+      _buildFavoritePage(),
+      _buildProfilePage(),
     ];
 
     return Scaffold(
       backgroundColor: lightBackgroundColor,
-      // MODIFIED: AppBar Baru dengan Hamburger Menu
       appBar: AppBar(
         backgroundColor: lightBackgroundColor,
         elevation: 0,
         foregroundColor: darkPrimaryColor,
         automaticallyImplyLeading: false,
-
         title: Text(
-          "Welcome, $_userName", // Judul AppBar menampilkan Welcome
+          "Welcome, $_userName",
           style: TextStyle(
             color: darkPrimaryColor,
             fontWeight: FontWeight.bold,
@@ -745,7 +955,6 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         actions: [
-          // Hamburger Menu Button
           PopupMenuButton<MenuChoice>(
             icon: Icon(Icons.menu, color: darkPrimaryColor, size: 30),
             onSelected: (MenuChoice result) {
@@ -811,11 +1020,7 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(width: 10),
         ],
       ),
-
-      // END MODIFIED: AppBar Baru
       body: widgetOptions.elementAt(_selectedIndex),
-
-      // MODIFIED: Tambahkan item "Favorit" ke Bottom Nav Bar
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -834,12 +1039,12 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: lightBackgroundColor,
           ),
           BottomNavigationBarItem(
-            label: 'Favorit', // NEW: Item Favorit (Index 3)
+            label: 'Favorit',
             icon: Icon(Icons.favorite),
             backgroundColor: lightBackgroundColor,
           ),
           BottomNavigationBarItem(
-            label: 'Profil', // Profil (Index 4)
+            label: 'Profil',
             icon: Icon(Icons.person),
             backgroundColor: lightBackgroundColor,
           ),
@@ -852,6 +1057,9 @@ class _HomePageState extends State<HomePage> {
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
+            if (index == 4) {
+              _loadUserInfo();
+            }
           });
         },
       ),
