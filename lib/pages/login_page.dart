@@ -1,3 +1,5 @@
+// lib/pages/login_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -20,6 +22,9 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  // NEW: State untuk visibilitas password
+  bool _isPasswordVisible = false;
 
   String _hashPassword(String password) {
     final bytes = utf8.encode(password);
@@ -87,11 +92,13 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // MODIFIED: Tambahkan parameter suffixIcon untuk tombol toggle
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     bool obscureText = false,
+    Widget? suffixIcon, // NEW
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,6 +124,8 @@ class _LoginPageState extends State<LoginPage> {
             focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: primaryColor, width: 2),
             ),
+            // NEW: Gunakan suffixIcon untuk tombol toggle
+            suffixIcon: suffixIcon,
           ),
         ),
       ],
@@ -240,11 +249,25 @@ class _LoginPageState extends State<LoginPage> {
                     icon: Icons.email_outlined,
                   ),
                   const SizedBox(height: 20),
+                  // MODIFIED: Password field dengan toggle visibility
                   _buildTextField(
                     controller: _passwordController,
                     label: 'Kata Sandi',
                     icon: Icons.lock_outline,
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: primaryColor.withOpacity(0.7),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
                   const SizedBox(height: 170),
                   _buildActionButton(

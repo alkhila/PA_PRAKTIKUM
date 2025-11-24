@@ -1,3 +1,5 @@
+// lib/pages/register_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:crypto/crypto.dart';
@@ -23,6 +25,10 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
+  // NEW: States for password visibility
+  bool _isPasswordVisible = false;
+  bool _isConfirmPasswordVisible = false;
+
   bool _isLoading = false;
 
   String _hashPassword(String password) {
@@ -44,6 +50,14 @@ class _RegisterPageState extends State<RegisterPage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Semua kolom harus diisi!')));
+      return;
+    }
+
+    // NEW LOGIC: Password minimal 6 karakter
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kata sandi harus minimal 6 karakter!')),
+      );
       return;
     }
 
@@ -117,11 +131,13 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // MODIFIED: Tambahkan parameter suffixIcon untuk tombol toggle
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required IconData icon,
     bool obscureText = false,
+    Widget? suffixIcon, // NEW
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,6 +163,8 @@ class _RegisterPageState extends State<RegisterPage> {
             focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: primaryColor, width: 2),
             ),
+            // NEW: Gunakan suffixIcon untuk tombol toggle
+            suffixIcon: suffixIcon,
           ),
         ),
       ],
@@ -283,18 +301,47 @@ class _RegisterPageState extends State<RegisterPage> {
                     icon: Icons.email_outlined,
                   ),
                   const SizedBox(height: 20),
+                  // MODIFIED: Password field dengan toggle visibility
                   _buildTextField(
                     controller: _passwordController,
                     label: 'Kata Sandi',
                     icon: Icons.lock_outline,
-                    obscureText: true,
+                    obscureText: !_isPasswordVisible,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: primaryColor.withOpacity(0.7),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
                   const SizedBox(height: 20),
+                  // MODIFIED: Confirm Password field dengan toggle visibility
                   _buildTextField(
                     controller: _confirmPasswordController,
                     label: 'Konfirmasi Kata Sandi',
                     icon: Icons.lock_reset,
-                    obscureText: true,
+                    obscureText: !_isConfirmPasswordVisible,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isConfirmPasswordVisible
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: primaryColor.withOpacity(0.7),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isConfirmPasswordVisible =
+                              !_isConfirmPasswordVisible;
+                        });
+                      },
+                    ),
                   ),
                   const SizedBox(height: 40),
                   _buildActionButton(
