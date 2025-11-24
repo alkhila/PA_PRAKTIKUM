@@ -228,10 +228,6 @@ class _CartPageState extends State<CartPage> {
       appBar: AppBar(
         backgroundColor: lightBackgroundColor,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: darkPrimaryColor),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: Text(
           'Cart',
           style: TextStyle(

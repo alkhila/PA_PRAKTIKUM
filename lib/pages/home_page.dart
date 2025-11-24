@@ -673,7 +673,6 @@ class _HomePageState extends State<HomePage> {
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 100),
       child: Stack(
         alignment: Alignment.topCenter,
         children: <Widget>[
@@ -688,7 +687,7 @@ class _HomePageState extends State<HomePage> {
                 end: Alignment.bottomCenter,
               ),
               borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(50),
+                bottom: Radius.circular(30),
               ),
             ),
           ),
@@ -833,7 +832,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
