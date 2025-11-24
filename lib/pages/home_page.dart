@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'time_converter_page.dart';
 import '../services/api_service.dart';
-import '../services/location_service.dart';
+// import '../services/location_service.dart'; // Dihapus
 import 'cart_page.dart';
 import 'lbs_page.dart';
 import 'detail_page.dart';
@@ -11,7 +11,7 @@ import 'login_page.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'checkout_detail_page.dart';
 import 'application_comment_page.dart';
-import '../services/currency_service.dart'; // Import CurrencyService
+// import '../services/currency_service.dart'; // Dihapus
 
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
@@ -33,16 +33,9 @@ class _HomePageState extends State<HomePage> {
   late Future<List<dynamic>> _menuFuture;
 
   final ApiService _apiService = ApiService();
-  final LocationService _locationService = LocationService();
-  final CurrencyService _currencyService =
-      CurrencyService(); // Currency Service instance
+  // FINAL DECLARATION LOKASI & CURRENCY DIHAPUS
 
-  String _currentAddress = 'Klik Lacak Lokasi';
-  bool _isLocating = false;
-
-  // NEW STATE FOR CURRENCY
-  String _currentCurrencyCode = 'IDR';
-  Map<String, double> _exchangeRates = {};
+  // STATE LOKASI & CURRENCY DIHAPUS
 
   String _searchQuery = '';
   MenuFilter _currentFilter = MenuFilter.all;
@@ -51,7 +44,8 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadUserInfo();
-    _loadInitialData(); // Load currency and then menu
+    _menuFuture = _apiService.fetchMenu();
+    // LOGIC LOAD CURRENCY DIHAPUS
   }
 
   void _loadUserInfo() async {
@@ -60,132 +54,6 @@ class _HomePageState extends State<HomePage> {
       _userName = prefs.getString('userName') ?? 'FastFoodie';
       _currentUserEmail = prefs.getString('current_user_email') ?? '';
     });
-  }
-
-  // NEW METHOD: Load location, determine currency, fetch rates, then fetch menu
-  void _loadInitialData() async {
-    // 1. Fetch Currency Rates
-    try {
-      _exchangeRates = await _currencyService.getExchangeRates();
-    } catch (e) {
-      debugPrint('Error fetching rates: $e');
-    }
-
-    // 2. Determine User Location and Default Currency
-    await _determineDefaultCurrency();
-
-    // 3. Fetch Menu (Start fetching the menu)
-    _menuFuture = _apiService.fetchMenu();
-    setState(() {}); // Trigger rebuild to show menu
-  }
-
-  // Method to fetch location, determine currency, and update state
-  Future<void> _determineDefaultCurrency({bool manualTrack = false}) async {
-    if (!manualTrack && _currentAddress != 'Klik Lacak Lokasi') return;
-
-    if (manualTrack) {
-      setState(() {
-        _isLocating = true;
-      });
-    }
-
-    try {
-      final position = await _locationService.getCurrentPosition();
-      final locationData = await _locationService.getCountryCode(
-        position.latitude,
-        position.longitude,
-      );
-      final countryCode = locationData['code']!;
-      final defaultCurrency = _currencyService.getDefaultCurrency(countryCode);
-      final address = await _locationService.getAddressFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      setState(() {
-        _currentAddress = address;
-        _currentCurrencyCode = defaultCurrency;
-        _isLocating = false;
-      });
-    } catch (e) {
-      String errorMsg = e.toString().replaceAll('Exception: ', '');
-      setState(() {
-        _currentAddress = manualTrack
-            ? 'Error: $errorMsg'
-            : 'Klik Lacak Lokasi';
-        _isLocating = false;
-      });
-    }
-  }
-
-  // Modified _trackLocation to use _determineDefaultCurrency logic
-  void _trackLocation() async {
-    // Only update loading status in state for visual feedback
-    setState(() {
-      _isLocating = true;
-      _currentAddress = 'Sedang melacak lokasi...';
-    });
-    // Use the comprehensive method for manual track
-    await _determineDefaultCurrency(manualTrack: true);
-  }
-
-  // NEW FUNCTION: Price Converter
-  String _convertAndFormatPrice(double basePrice) {
-    if (_exchangeRates.isEmpty || _currentCurrencyCode == 'IDR') {
-      return 'Rp ${basePrice.toStringAsFixed(0)}';
-    }
-
-    final targetRate = _exchangeRates[_currentCurrencyCode];
-    if (targetRate == null) {
-      return 'Rp ${basePrice.toStringAsFixed(0)}'; // Fallback
-    }
-
-    // Convert Price_IDR (basePrice) to Price_Target: Price_IDR * Rate_Target
-    final convertedAmount = basePrice * targetRate;
-
-    // Use NumberFormat for proper symbol/code formatting
-    final format = NumberFormat.currency(
-      locale: 'en_US', // Using en_US for consistent code placement
-      symbol: _currentCurrencyCode,
-      decimalDigits: convertedAmount >= 1000
-          ? 0
-          : 2, // Tampilkan 2 desimal jika nilainya kecil
-    );
-
-    return format.format(convertedAmount);
-  }
-
-  // MODIFIED FUNCTION: Rating Stars Renderer (sesuai permintaan gambar)
-  Widget _buildRatingStars(dynamic ratingValue) {
-    double rating = 0.0;
-    if (ratingValue is num) {
-      rating = ratingValue.toDouble();
-    } else {
-      rating = 4.0; // Fallback ke 4.0
-    }
-
-    int commentCount = (rating * 100).toInt(); // Simulasi jumlah komentar
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '($commentCount)', // Jumlah komentar simulasi
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
-        const SizedBox(width: 8),
-        const Icon(Icons.star, color: Colors.amber, size: 14),
-        const SizedBox(width: 4),
-        Text(
-          rating.toStringAsFixed(1), // Nilai rating numerik
-          style: const TextStyle(
-            fontSize: 12,
-            color: darkPrimaryColor,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
   }
 
   void _confirmLogout() {
@@ -229,6 +97,8 @@ class _HomePageState extends State<HomePage> {
     ).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
   }
 
+  // METHOD LOKASI & CURRENCY DIHAPUS
+
   void _openDetailPage(Map<String, dynamic> item) {
     if (_currentUserEmail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -249,6 +119,41 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // MODIFIED FUNCTION: Rating Stars Renderer (sesuai permintaan gambar)
+  Widget _buildRatingStars(dynamic ratingValue) {
+    double rating = 0.0;
+    if (ratingValue is num) {
+      rating = ratingValue.toDouble();
+    } else {
+      rating = 4.0; // Fallback
+    }
+
+    // Simulasi jumlah komentar: ambil rating, kalikan 100, lalu tambahkan nilai acak kecil agar angkanya berbeda-beda.
+    int commentCount = (rating * 100).toInt();
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.star, color: Colors.amber, size: 14),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(1), // Nilai rating numerik (e.g., 4.5)
+          style: const TextStyle(
+            fontSize: 12,
+            color: darkPrimaryColor,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Simpan jumlah komentar di item['commentCount'] atau simulasikan
+        Text(
+          '($commentCount)',
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMenuCatalog() {
     return Column(
       children: [
@@ -257,55 +162,7 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // HEADER LAMA (Welcome & Feedback) DIHAPUS DARI SINI DAN DIPINDAHKAN KE APP BAR
-
-              // --- START: LOKASI DIPINDAHKAN KE HOME TAB ---
-              Text(
-                'Lokasi Saya:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: darkPrimaryColor,
-                ),
-              ),
-              Text(
-                '$_currentAddress | Kurs: $_currentCurrencyCode', // Display current currency
-                style: TextStyle(
-                  fontSize: 14,
-                  color: _isLocating
-                      ? Color(0xFF703B3B)
-                      : darkPrimaryColor.withOpacity(0.8),
-                ),
-                textAlign: TextAlign.start,
-              ),
-              const SizedBox(height: 5),
-              ElevatedButton.icon(
-                onPressed: _isLocating ? null : _trackLocation,
-                icon: _isLocating
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.location_on, size: 18),
-                label: Text(
-                  _isLocating ? 'Melacak...' : 'Lacak Lokasi Sekarang',
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: darkPrimaryColor,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(180, 35),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 15),
-
-              // --- END: LOKASI DIPINDAHKAN KE HOME TAB ---
+              // --- LOKASI DAN TOMBOL LACAK DIHAPUS TOTAL DARI SINI ---
               TextField(
                 onChanged: (value) {
                   setState(() {
@@ -427,8 +284,8 @@ class _HomePageState extends State<HomePage> {
                         (item['type'] == 'Minuman' &&
                         (item['strMealThumb'] as String).startsWith('assets/'));
 
-                    // Base price is assumed to be in IDR (from API service)
-                    final double basePrice = item['price'] is num
+                    // Harga di sini default IDR karena fitur konversi lokasi dihapus
+                    final double price = item['price'] is num
                         ? item['price'].toDouble()
                         : 0.0;
 
@@ -531,16 +388,16 @@ class _HomePageState extends State<HomePage> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        // MODIFIED: DYNAMIC CURRENCY DISPLAY
+                                        // HARGA DEFAULT IDR
                                         Text(
-                                          _convertAndFormatPrice(basePrice),
+                                          'Rp ${price.toStringAsFixed(0)}',
                                           style: const TextStyle(
                                             color: darkPrimaryColor,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
                                         ),
-                                        // END DYNAMIC CURRENCY
+                                        // END HARGA DEFAULT
                                         Container(
                                           padding: const EdgeInsets.all(5),
                                           decoration: BoxDecoration(
