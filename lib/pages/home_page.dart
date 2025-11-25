@@ -367,14 +367,14 @@ class _HomePageState extends State<HomePage> {
                     return GridView.builder(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
-                        vertical: 10,
+                        vertical: 15,
                       ),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            childAspectRatio: 0.7,
+                            childAspectRatio: 0.65,
                             crossAxisSpacing: 15,
-                            mainAxisSpacing: 15,
+                            mainAxisSpacing: 10,
                           ),
                       itemCount: filteredList.length,
                       itemBuilder: (context, index) {
@@ -448,7 +448,7 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                             child: IconButton(
                                               padding: EdgeInsets.zero,
-                                              iconSize: 20,
+                                              iconSize: 15,
                                               icon: Icon(
                                                 isFavorite
                                                     ? Icons.favorite
@@ -542,7 +542,7 @@ class _HomePageState extends State<HomePage> {
                                               child: const Icon(
                                                 Icons.add,
                                                 color: Colors.white,
-                                                size: 20,
+                                                size: 10,
                                               ),
                                             ),
                                           ],
