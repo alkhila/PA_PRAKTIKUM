@@ -24,7 +24,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late String _userEmail;
   String _tempImagePath = '';
   bool _isLoading = false;
-  final bool isWeb = kIsWeb; // Check if running on web
+  final bool isWeb = kIsWeb;
 
   @override
   void initState() {
@@ -107,12 +107,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // 1. Update SharedPreferences
       await prefs.setString('userName', _nameController.text.trim());
       await prefs.setString('user_address', _addressController.text.trim());
       await prefs.setString('profile_image_path', _tempImagePath);
 
-      // 2. Update di Hive Box
       final userBox = Hive.box<UserModel>('userBox');
       final userKey = userBox.keys.firstWhere(
         (key) => userBox.get(key)?.email == _userEmail,
@@ -183,17 +181,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Determine image source safely
     ImageProvider? imageProvider;
     bool showPlaceholderIcon = true;
 
     if (_tempImagePath.isNotEmpty) {
       if (isWeb) {
-        // On web, treat path as a temporary blob URL
         imageProvider = NetworkImage(_tempImagePath);
         showPlaceholderIcon = false;
       } else if (File(_tempImagePath).existsSync()) {
-        // On mobile/desktop, use FileImage if file exists
         imageProvider = FileImage(File(_tempImagePath));
         showPlaceholderIcon = false;
       }
@@ -213,7 +208,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // --- Profile Picture Edit ---
               Stack(
                 children: [
                   CircleAvatar(
@@ -248,13 +242,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               const SizedBox(height: 30),
 
-              // --- Form Fields ---
               _buildTextField(
                 controller: _nameController,
                 label: 'Nama Lengkap',
                 icon: Icons.person,
               ),
-              // Email tidak bisa diedit
               _buildTextField(
                 controller: TextEditingController(text: _userEmail),
                 label: 'Email (Tidak Dapat Diubah)',
@@ -268,7 +260,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 maxLines: 3,
               ),
 
-              // Tombol Simpan
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: _isLoading ? null : _saveProfile,

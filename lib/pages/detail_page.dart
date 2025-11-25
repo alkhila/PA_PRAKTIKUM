@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../models/cart_item_model.dart';
-import '../models/comment_model.dart'; // Import Model Komentar
-import '../models/favorite_model.dart'; // NEW: Import FavoriteModel
+import '../models/comment_model.dart';
+import '../models/favorite_model.dart';
 
 const Color brownColor = Color(0xFF4E342E);
-const Color accentColor = Color(0xFFFFB300); // Warna Kuning untuk Bintang
+const Color accentColor = Color(0xFFFFB300);
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
 const Color lightBackgroundColor = Color(0xFFE1D0B3);
 
-// --- WIDGET: Product Comments Section (Untuk Tab Ulasan) ---
 class _ProductCommentsSection extends StatefulWidget {
   final String itemId;
   final String userEmail;
@@ -71,15 +70,11 @@ class _ProductCommentsSectionState extends State<_ProductCommentsSection> {
             .reversed
             .toList();
 
-        // Padding untuk seluruh konten komentar
         return Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 25.0,
-          ), // Padding disamakan
+          padding: const EdgeInsets.symmetric(horizontal: 25.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Input Komentar (Hanya muncul jika logged in)
               if (isLoggedIn)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 15.0, top: 15.0),
@@ -140,7 +135,6 @@ class _ProductCommentsSectionState extends State<_ProductCommentsSection> {
               ),
               const Divider(),
 
-              // Daftar Komentar
               Column(
                 children: [
                   if (comments.isEmpty)
@@ -215,7 +209,6 @@ class _ProductCommentsSectionState extends State<_ProductCommentsSection> {
     );
   }
 }
-// --- END WIDGET ---
 
 class DetailPage extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -241,7 +234,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
   final double curveRadius = 35.0;
   final double nameCategoryContentHeight = 140.0;
 
-  // NEW: Hive Box for Favorites
   final favoriteBox = Hive.box<FavoriteModel>('favoriteBox');
   late bool _isFavorite;
 
@@ -261,7 +253,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
     }
     _itemPrice = _basePrice;
 
-    // NEW: Cek status favorit saat inisialisasi
     _isFavorite = favoriteBox.values.any(
       (item) =>
           item.idMeal == widget.item['idMeal'] &&
@@ -310,7 +301,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
     Navigator.pop(context);
   }
 
-  // NEW: Fungsi untuk menambah/menghapus dari favorit
   void _toggleFavorite() async {
     if (widget.currentUserEmail.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -330,7 +320,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
     );
 
     if (existingFavoriteKey != null) {
-      // Hapus dari favorit
       await favoriteBox.delete(existingFavoriteKey);
       setState(() {
         _isFavorite = false;
@@ -342,7 +331,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
         ),
       );
     } else {
-      // Tambahkan ke favorit
       final newFavorite = FavoriteModel(
         idMeal: itemId,
         strMeal: widget.item['strMeal'] ?? 'Unknown Item',
@@ -380,7 +368,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final item = widget.item;
     final itemID = item['idMeal'] ?? UniqueKey().toString();
-    // Ambil rating dari item
     final double rating = (item['rate'] as double?) ?? 0.0;
 
     final isLocalAsset =
@@ -390,26 +377,18 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
         ? item['strMealThumb']
         : item['strMealThumb'] ?? 'https://via.placeholder.com/250';
 
-    // Image: Forced 16:9 Aspect Ratio (Landscape)
     final double fixedImageHeight =
         MediaQuery.of(context).size.width / (16 / 9);
 
     return Scaffold(
-      backgroundColor: Color.fromARGB(
-        255,
-        249,
-        245,
-        241,
-      ), // Warna Latar Belakang Scaffold
+      backgroundColor: Color.fromARGB(255, 249, 245, 241),
       body: Column(
         children: [
-          // --- FIXED HEADER GROUP: IMAGE + CURVE OVERLAP ---
           SizedBox(
             height: fixedImageHeight + nameCategoryContentHeight,
             width: double.infinity,
             child: Stack(
               children: [
-                // 1. Area Gambar (Diposisikan untuk menempati area 16:9)
                 Positioned(
                   top: 0,
                   left: 0,
@@ -430,7 +409,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                               ),
                         ),
                 ),
-                // Back Button (Fixed Position)
                 Positioned(
                   top: 40,
                   left: 20,
@@ -447,7 +425,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // NEW: Favorite Button
                 Positioned(
                   top: 40,
                   right: 20,
@@ -467,7 +444,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                   ),
                 ),
 
-                // 2. Container Melengkung (Diposisikan di Bawah Gambar untuk overlap)
                 Positioned(
                   top: fixedImageHeight - curveRadius,
                   left: 0,
@@ -476,21 +452,14 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                   child: Container(
                     padding: EdgeInsets.fromLTRB(25, 10 + curveRadius, 25, 0),
                     decoration: BoxDecoration(
-                      color: Color.fromARGB(
-                        255,
-                        249,
-                        245,
-                        241,
-                      ), // Warna kotak coklat
+                      color: Color.fromARGB(255, 249, 245, 241),
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(curveRadius),
-                      ), // Kurva
+                      ),
                     ),
-                    // Konten Nama & Kategori
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // MODIFIED: Judul dan Rating sejajar dalam satu Row
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -508,7 +477,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            // NEW FIX: Rating Display (Hanya Rating Value)
                             if (rating > 0)
                               Padding(
                                 padding: const EdgeInsets.only(left: 10.0),
@@ -522,20 +490,18 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                                     ),
                                     const SizedBox(width: 5),
                                     Text(
-                                      '${rating.toStringAsFixed(1)}', // Hanya Rating Value
+                                      '${rating.toStringAsFixed(1)}',
                                       style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: darkPrimaryColor,
                                       ),
                                     ),
-                                    // Jumlah ulasan (Review Count) dihilangkan
                                   ],
                                 ),
                               ),
                           ],
                         ),
-                        // Kategori Text
                         Text(
                           'Kategori: ${item['type'] ?? 'N/A'}',
                           style: const TextStyle(
@@ -552,10 +518,8 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
             ),
           ),
 
-          // --- SCROLLABLE SECTION CONTAINER ---
           Expanded(
             child: Transform.translate(
-              // Mengangkat sisa body ke atas untuk menyambung dengan FIXED HEADER 2
               offset: Offset(0, -curveRadius),
               child: Container(
                 color: Color.fromARGB(255, 249, 245, 241),
@@ -563,7 +527,6 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                   length: 2,
                   child: Column(
                     children: [
-                      // TabBar (Fixed di area scrollable)
                       Container(
                         color: Color.fromARGB(255, 249, 245, 241),
                         padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -579,18 +542,15 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                         ),
                       ),
 
-                      // TabBarView
                       Expanded(
                         child: TabBarView(
                           controller: _tabController,
                           children: [
-                            // Tab 1: Detail & Kuantitas
                             _buildScrollableContent(
                               context,
                               isReviewTab: false,
                               itemID: itemID,
                             ),
-                            // Tab 2: Ulasan Produk
                             _buildScrollableContent(
                               context,
                               isReviewTab: true,
@@ -607,11 +567,9 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
           ),
         ],
       ),
-      // --- FIXED FOOTER: ADD TO CART BUTTON ---
       bottomNavigationBar: Container(
-        // Padding atas disetel ke 0 untuk menghilangkan artifact / ruang coklat yang tidak perlu
         padding: const EdgeInsets.fromLTRB(25, 0, 25, 25),
-        color: Color.fromARGB(255, 249, 245, 241), // Warna latar belakang sama
+        color: Color.fromARGB(255, 249, 245, 241),
         child: ElevatedButton(
           onPressed: _addToCart,
           style: ElevatedButton.styleFrom(
@@ -641,26 +599,22 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
     );
   }
 
-  // Helper untuk membuat konten scrollable di setiap tab
   Widget _buildScrollableContent(
     BuildContext context, {
     required bool isReviewTab,
     required String itemID,
   }) {
-    // SingleChildScrollView di dalam TabBarView memastikan konten scrollable secara independen
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 10), // Padding diatur di sini
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Kontrol Kuantitas & Info Dasar (Hanya di Tab 1)
           if (!isReviewTab)
             Padding(
               padding: const EdgeInsets.only(left: 25, right: 25),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // NEW FIX: Menambahkan SizedBox untuk memberi jarak di atas "Jumlah Pesanan"
                   const SizedBox(height: 15),
                   Text(
                     'Jumlah Pesanan',
@@ -697,17 +651,15 @@ class _DetailPageState extends State<DetailPage> with TickerProviderStateMixin {
                     ],
                   ),
                   const Divider(height: 30),
-                  // MODIFIED: Deskripsi dari API
                   Text(
                     widget.item['description'] as String? ??
                         'Deskripsi tidak tersedia.',
                     style: TextStyle(fontSize: 14, color: Colors.black87),
                   ),
-                  const SizedBox(height: 20), // Tambahan space di akhir konten
+                  const SizedBox(height: 20),
                 ],
               ),
             )
-          // Konten Review (Hanya di Tab 2)
           else
             _ProductCommentsSection(
               itemId: itemID,

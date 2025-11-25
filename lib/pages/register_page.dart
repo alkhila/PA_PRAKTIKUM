@@ -1,5 +1,3 @@
-// lib/pages/register_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:crypto/crypto.dart';
@@ -25,7 +23,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
-  // NEW: States for password visibility
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
@@ -53,7 +50,6 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // NEW LOGIC: Password minimal 6 karakter
     if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Kata sandi harus minimal 6 karakter!')),
@@ -131,7 +127,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // MODIFIED: Tambahkan parameter suffixIcon untuk tombol toggle
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -163,7 +158,6 @@ class _RegisterPageState extends State<RegisterPage> {
             focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: primaryColor, width: 2),
             ),
-            // NEW: Gunakan suffixIcon untuk tombol toggle
             suffixIcon: suffixIcon,
           ),
         ),
@@ -301,7 +295,6 @@ class _RegisterPageState extends State<RegisterPage> {
                     icon: Icons.email_outlined,
                   ),
                   const SizedBox(height: 20),
-                  // MODIFIED: Password field dengan toggle visibility
                   _buildTextField(
                     controller: _passwordController,
                     label: 'Kata Sandi',
@@ -322,7 +315,6 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // MODIFIED: Confirm Password field dengan toggle visibility
                   _buildTextField(
                     controller: _confirmPasswordController,
                     label: 'Konfirmasi Kata Sandi',

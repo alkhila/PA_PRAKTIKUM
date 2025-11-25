@@ -3,7 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/favorite_model.dart';
 import 'detail_page.dart';
-import '../services/api_service.dart'; // NEW: Import ApiService
+import '../services/api_service.dart';
 
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
@@ -26,7 +26,7 @@ class _FavoritePageState extends State<FavoritePage> {
   void initState() {
     super.initState();
     _loadUserInfo();
-    _menuFuture = _apiService.fetchMenu(); // Load semua menu
+    _menuFuture = _apiService.fetchMenu();
   }
 
   void _loadUserInfo() async {
@@ -57,7 +57,6 @@ class _FavoritePageState extends State<FavoritePage> {
     );
   }
 
-  // Helper untuk mencari detail menu berdasarkan ID
   Map<String, dynamic>? _findMenuDetail(String idMeal, List<dynamic> allMenus) {
     try {
       return allMenus.firstWhere((menu) => menu['idMeal'] == idMeal);
@@ -66,13 +65,12 @@ class _FavoritePageState extends State<FavoritePage> {
     }
   }
 
-  // MODIFIED: Rating Stars Renderer (Diambil dari HomePage)
   Widget _buildRatingStars(dynamic ratingValue) {
     double rating = 0.0;
     if (ratingValue is num) {
       rating = ratingValue.toDouble();
     } else {
-      rating = 4.0; // Fallback
+      rating = 4.0;
     }
 
     return Row(
@@ -160,7 +158,6 @@ class _FavoritePageState extends State<FavoritePage> {
                     allMenus,
                   );
 
-                  // Jika detail tidak ditemukan, gunakan fallback/data dari FavoriteModel
                   final item =
                       itemDetail ??
                       {
@@ -202,7 +199,6 @@ class _FavoritePageState extends State<FavoritePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // --- IMAGE SECTION ---
                           Expanded(
                             flex: 2,
                             child: Stack(
@@ -231,7 +227,6 @@ class _FavoritePageState extends State<FavoritePage> {
                                                   ),
                                         ),
                                 ),
-                                // Tombol Hapus Favorit
                                 Positioned(
                                   top: 5,
                                   right: 5,
@@ -266,7 +261,6 @@ class _FavoritePageState extends State<FavoritePage> {
                               ],
                             ),
                           ),
-                          // --- CONTENT SECTION ---
                           Expanded(
                             flex: 1,
                             child: Padding(
@@ -313,8 +307,7 @@ class _FavoritePageState extends State<FavoritePage> {
                                     ],
                                   ),
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment
-                                        .start, // MODIFIED: Dibuat Start karena hanya ada 1 item
+                                    mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Rp ${price.toStringAsFixed(0)}',
@@ -324,7 +317,6 @@ class _FavoritePageState extends State<FavoritePage> {
                                           fontSize: 14,
                                         ),
                                       ),
-                                      // REMOVED: Placeholder Icon
                                     ],
                                   ),
                                 ],

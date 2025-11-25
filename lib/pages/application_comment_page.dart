@@ -6,8 +6,7 @@ import '../models/comment_model.dart';
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
 const Color lightBackgroundColor = Color(0xFFE1D0B3);
-const String APP_FEEDBACK_ITEM_ID =
-    'APP_FEEDBACK'; // Konstanta untuk komentar aplikasi
+const String APP_FEEDBACK_ITEM_ID = 'APP_FEEDBACK';
 
 class ApplicationCommentPage extends StatefulWidget {
   final String userEmail;
@@ -124,7 +123,7 @@ class _ApplicationCommentPageState extends State<ApplicationCommentPage> {
                 final appComments = box.values
                     .where((c) => c.itemId == APP_FEEDBACK_ITEM_ID)
                     .toList()
-                    .reversed // Tampilkan yang terbaru di atas
+                    .reversed
                     .toList();
 
                 if (appComments.isEmpty) {

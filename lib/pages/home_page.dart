@@ -16,7 +16,7 @@ import 'favorite_page.dart';
 import '../models/favorite_model.dart';
 import 'edit_profile_page.dart';
 import 'checkout_detail_page.dart';
-import 'package:flutter/foundation.dart'; // Import untuk kIsWeb
+import 'package:flutter/foundation.dart';
 
 const Color darkPrimaryColor = Color(0xFF703B3B);
 const Color secondaryAccentColor = Color(0xFFA18D6D);
@@ -48,9 +48,8 @@ class _HomePageState extends State<HomePage> {
   String _userAddress = 'Alamat belum diatur';
   String _profileImagePath = '';
 
-  // FIXED CONSTANTS
   final double avatarRadius = 60;
-  final double headerHeight = 150; // Ketinggian header
+  final double headerHeight = 150;
 
   @override
   void initState() {
@@ -162,7 +161,6 @@ class _HomePageState extends State<HomePage> {
     if (pickedFile != null) {
       final prefs = await SharedPreferences.getInstance();
 
-      // Di Web/Mobile, simpan path/url
       await prefs.setString('profile_image_path', pickedFile.path);
       _loadUserInfo();
     }
@@ -576,7 +574,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // REVISED: Struktur field diperbaiki agar sesuai gambar referensi
   Widget _buildProfileInfoField({
     required String label,
     required String value,
@@ -587,7 +584,6 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label (Nama/Email/Alamat) - Dibuat kecil dan diletakkan di atas input
         Padding(
           padding: const EdgeInsets.only(left: 10.0, bottom: 4.0),
           child: Text(
@@ -598,15 +594,12 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        // Input Container/Box (White box)
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(
-              20,
-            ), // Border radius diperbesar agar lebih melengkung
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: secondaryAccentColor.withOpacity(0.3)),
             boxShadow: [
               BoxShadow(
@@ -632,51 +625,41 @@ class _HomePageState extends State<HomePage> {
                   maxLines: isDeliveryAddress ? 2 : 1,
                 ),
               ),
-              // Icon berada di dalam field, di kanan
               Icon(icon, color: darkPrimaryColor.withOpacity(0.7), size: 20),
             ],
           ),
         ),
-        const SizedBox(height: 15), // Jarak antar field
+        const SizedBox(height: 15),
       ],
     );
   }
 
-  // MODIFIED: Implementasi UI Profil - Final Structural Fix
   Widget _buildProfilePage() {
-    // NEW: Handle crash on web (since File() is unsupported)
     final bool isWeb = kIsWeb;
-    // FIX IMAGE LOGIC: Jika path ada, kita asumsikan gambar bisa ditampilkan
     final bool hasImagePath = _profileImagePath.isNotEmpty;
 
-    // FIXED CONSTANTS
     final Color headerColorStart = darkPrimaryColor;
     final Color headerColorEnd = secondaryAccentColor;
-    final double avatarOverlap = 60.0; // Jarak avatar menonjol ke bawah
+    final double avatarOverlap = 60.0;
 
     ImageProvider? imageProvider;
     if (hasImagePath) {
       if (isWeb) {
-        // Web: Gunakan NetworkImage untuk blob URL
         imageProvider = NetworkImage(_profileImagePath);
       } else {
-        // Mobile/Desktop: Check file existence before FileImage
         if (File(_profileImagePath).existsSync()) {
           imageProvider = FileImage(File(_profileImagePath));
         }
       }
     }
 
-    // Perhitungan space kompensasi agar konten fields terangkat pas di bawah avatar
-    final double verticalCompensationSpace =
-        avatarRadius * 2 + 160; // 60*2 + 20 = 140px (Nilai baru)
+    final double verticalCompensationSpace = avatarRadius * 2 + 160;
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       child: Stack(
         alignment: Alignment.topCenter,
         children: <Widget>[
-          // 1. Header Background (Curved Bottom)
           Container(
             height: headerHeight,
             width: double.infinity,
@@ -692,21 +675,15 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // 2. Profile Details/Content (FIELDS)
-          // Menggunakan Transform.translate untuk menggeser konten ke atas (menghilangkan gap)
           Transform.translate(
-            offset: Offset(0, -avatarOverlap), // PULL UP CONTENT 60px
+            offset: Offset(0, -avatarOverlap),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- Kompensasi Ruang di atas Fields ---
-                  // Memberikan ruang yang dihilangkan oleh Transform.translate
-                  // FIXED: Disesuaikan menjadi 140px untuk memastikan clearance visual
                   SizedBox(height: verticalCompensationSpace),
 
-                  // --- Profile Fields ---
                   _buildProfileInfoField(
                     label: 'Nama',
                     value: _userName,
@@ -731,7 +708,6 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 10),
 
-                  // 5. Order History
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -783,10 +759,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 30),
 
-                  // --- Action Buttons ---
                   Row(
                     children: [
-                      // Edit Profile Button
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: _openEditProfile,
@@ -808,7 +782,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(width: 15),
-                      // Logout Button
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: _confirmLogout,
@@ -837,15 +810,13 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // 3. Profile Picture (Diposisikan di tengah area overlap)
           Positioned(
-            top: headerHeight - avatarRadius, // 150 - 60 = 90px dari atas
+            top: headerHeight - avatarRadius,
             child: Center(
               child: Stack(
                 children: [
-                  // Profile Picture
                   CircleAvatar(
-                    radius: avatarRadius, // 60
+                    radius: avatarRadius,
                     backgroundColor: Colors.white,
                     backgroundImage: imageProvider,
                     child: imageProvider == null
@@ -856,7 +827,6 @@ class _HomePageState extends State<HomePage> {
                           )
                         : null,
                   ),
-                  // Add/Change Photo Button
                   Positioned(
                     bottom: 0,
                     right: 0,
